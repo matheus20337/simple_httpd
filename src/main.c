@@ -72,6 +72,7 @@ int main() {
 	 * limit of one concurrent user for the server. I need to fix this.
 	 */
 	do {
+		const size_t max_buff_len = 1024;
 		struct sockaddr_storage client_addr_storage;
 		/* client_addr_len enters accept as the maximul length our client_addr_storage can
 		 * hold, after accept() runs, it overwrites with the actual size of the address.
@@ -84,10 +85,14 @@ int main() {
 		int client_sock = accept(sock, (struct sockaddr*)&client_addr_storage, &client_addr_len);
 
 		addr_to_str(&client_addr_storage, client_addr_len, ip_str);
+		printf("------------------------\n");
+		printf("Got connection from %s\n", ip_str);
 
 		/* For now, we'll discard the request. TODO: Read and interpret the request. */
-
-		printf("Got connection from %s\n", ip_str);
+		char buffer[max_buff_len + 1];
+		int buff_len = recv(client_sock, buffer, max_buff_len, 0);
+		buffer[buff_len] = '\0';
+		printf("Got data:\n%s\n", buffer);
 
 		send(client_sock, sample_msg, strlen(sample_msg) * sizeof(char), 0);
 
