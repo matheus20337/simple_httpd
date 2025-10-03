@@ -19,6 +19,8 @@ const char *sample_msg = "HTTP/1.1 404 Not found\r\n"
 "\r\n"
 "<h1>Hello, networking!</h1>\r\n";
 
+void addr_to_str(struct sockaddr_storage *addr, socklen_t addr_len, char *addr_str);
+
 int main() {
 	/* We will ask the OS for a list of addresses we
 	 * can use. These are our search criteria.
@@ -75,23 +77,15 @@ int main() {
 		 * hold, after accept() runs, it overwrites with the actual size of the address.
 		 */
 		socklen_t client_addr_len = sizeof(struct sockaddr_storage);
-		void *addr;
 
 		char ip_str[INET6_ADDRSTRLEN];
 
 		/* Wait until a client opens a connection */
 		int client_sock = accept(sock, (struct sockaddr*)&client_addr_storage, &client_addr_len);
 
-		if (client_addr_storage.ss_family == AF_INET) {
-			/* This is my greatest act of pointer magic to this date. */
-			addr = &((struct sockaddr_in *)&client_addr_storage)->sin_addr;
-		} else {
-			addr = &((struct sockaddr_in6 *)&client_addr_storage)->sin6_addr;
-		}
+		addr_to_str(&client_addr_storage, client_addr_len, ip_str);
 
 		/* For now, we'll discard the request. TODO: Read and interpret the request. */
-
-		inet_ntop(client_addr_storage.ss_family, addr, ip_str, client_addr_len);
 
 		printf("Got connection from %s\n", ip_str);
 
@@ -105,4 +99,18 @@ int main() {
 	
 	
 	return 0;
+}
+
+/* Converts a sockaddr into a presentation ip string. */
+void addr_to_str(struct sockaddr_storage *addr, socklen_t addr_len, char *addr_str) {
+	void *raw_addr;
+
+	if (addr->ss_family == AF_INET) {
+		/* This is my greatest act of pointer magic to this date. */
+		raw_addr = &((struct sockaddr_in *)&addr)->sin_addr;
+	} else {
+		raw_addr = &((struct sockaddr_in6 *)&addr)->sin6_addr;
+	}
+
+	inet_ntop(addr->ss_family, raw_addr, addr_str, addr_len);
 }
