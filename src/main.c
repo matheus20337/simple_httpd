@@ -20,60 +20,12 @@ const char *sample_msg = "HTTP/1.1 404 Not found\r\n"
 
 void addr_to_str(struct sockaddr *addr, socklen_t addr_len, char *addr_str);
 
+int init_server(void);
+
 int main() {
-	/* We will ask the OS for a list of addresses we
-	 * can use. These are our search criteria.
-	 */
-	struct addrinfo hints = {0};
-	hints.ai_family = AF_UNSPEC;  /* use either ipv4 or ipv6 addresses */
-	hints.ai_socktype = SOCK_STREAM; /* use stream sockets (for TCP) */
-	hints.ai_flags = AI_PASSIVE; /* Let the OS decide the IP address for us. */
-
-	int sock;
-
 	char ip_str[INET6_ADDRSTRLEN];
 
-	/* Store the list of addresses the OS will give us here. */
-	struct addrinfo *addrs;
-
-	int error_code;
-	if ((error_code = getaddrinfo(NULL, port, &hints, &addrs)) != 0) {
-		fprintf(stderr, "GAI FAILED!: %s\n", gai_strerror(error_code));
-		exit(1);
-	}
-
-	struct addrinfo *p;
-	for (p = addrs; p != NULL; p = p->ai_next) {
-		if ((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-			fprintf(stderr, "Failed to create server socket.\nRetrying...");
-			continue;
-		}
-
-		/* The socket will be bound by the address we got from the OS. */
-		if (bind(sock, addrs->ai_addr, addrs->ai_addrlen) != 0) {
-			fprintf(stderr, "Failed to bind socket.\n");
-			continue;
-		}
-
-		break;
-	}
-
-	if (p == NULL) {
-		fprintf(stderr, "Failed to bind to address.\n");
-		exit(1);
-	}
-
-	/* Mark the socket as accepting connections. */
-	if (listen(sock, 1) != 0) {
-		fprintf(stderr, "Failed to listen.\n");
-		exit(1);
-	}
-
-	addr_to_str(addrs->ai_addr, addrs->ai_addrlen, ip_str);
-	printf("Listening on %s:%s\n", ip_str, port);
-
-	/* We no longer need this. */
-	freeaddrinfo(addrs);
+	int sock = init_server();
 
 	/* TODO: This loop will freeze execution until a client connects and, thus, sets a
 	 * limit of one concurrent user for the server. I need to fix this.
@@ -121,4 +73,64 @@ void addr_to_str(struct sockaddr *addr, socklen_t addr_len, char *addr_str) {
 	}
 
 	inet_ntop(addr->sa_family, raw_addr, addr_str, addr_len);
+}
+
+/* Asks the OS for an address, creates a socket,
+ * bind it and listen. Returns the socket.
+ */
+int init_server(void) {
+	char ip_str[INET6_ADDRSTRLEN];
+	/* We will ask the OS for a list of addresses we
+	 * can use. These are our search criteria.
+	 */
+	struct addrinfo hints = {0};
+	hints.ai_family = AF_UNSPEC;  /* use either ipv4 or ipv6 addresses */
+	hints.ai_socktype = SOCK_STREAM; /* use stream sockets (for TCP) */
+	hints.ai_flags = AI_PASSIVE; /* Let the OS decide the IP address for us. */
+
+	int sock;
+
+
+	/* Store the list of addresses the OS will give us here. */
+	struct addrinfo *addrs;
+
+	int error_code;
+	if ((error_code = getaddrinfo(NULL, port, &hints, &addrs)) != 0) {
+		fprintf(stderr, "GAI FAILED!: %s\n", gai_strerror(error_code));
+		exit(1);
+	}
+
+	struct addrinfo *p;
+	for (p = addrs; p != NULL; p = p->ai_next) {
+		if ((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+			fprintf(stderr, "Failed to create server socket.\nRetrying...");
+			continue;
+		}
+
+		/* The socket will be bound by the address we got from the OS. */
+		if (bind(sock, addrs->ai_addr, addrs->ai_addrlen) != 0) {
+			fprintf(stderr, "Failed to bind socket.\n");
+			continue;
+		}
+
+		break;
+	}
+
+	if (p == NULL) {
+		fprintf(stderr, "Failed to bind to address.\n");
+		exit(1);
+	}
+
+
+	/* Mark the socket as accepting connections. */
+	if (listen(sock, 1) != 0) {
+		fprintf(stderr, "Failed to listen.\n");
+		exit(1);
+	}
+
+	addr_to_str(addrs->ai_addr, addrs->ai_addrlen, ip_str);
+	printf("Listening on %s:%s\n", ip_str, port);
+	freeaddrinfo(addrs);
+
+	return sock;
 }
