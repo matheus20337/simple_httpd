@@ -9,7 +9,6 @@
 
 /* Poor man's httpd */
 
-const char *host = "0.0.0.0";
 const char *port = "8080"; /* The functions expect the port to be a string. */
 
 const char *sample_msg = "HTTP/1.1 404 Not found\r\n"
@@ -19,7 +18,7 @@ const char *sample_msg = "HTTP/1.1 404 Not found\r\n"
 "\r\n"
 "<h1>Hello, networking!</h1>\r\n";
 
-void addr_to_str(struct sockaddr_storage *addr, socklen_t addr_len, char *addr_str);
+void addr_to_str(struct sockaddr *addr, socklen_t addr_len, char *addr_str);
 
 int main() {
 	/* We will ask the OS for a list of addresses we
@@ -28,45 +27,53 @@ int main() {
 	struct addrinfo hints = {0};
 	hints.ai_family = AF_UNSPEC;  /* use either ipv4 or ipv6 addresses */
 	hints.ai_socktype = SOCK_STREAM; /* use stream sockets (for TCP) */
-	hints.ai_protocol = 0; /* Infer the protocol from the socktype (it will be TCP) */
+	hints.ai_flags = AI_PASSIVE; /* Let the OS decide the IP address for us. */
+
+	int sock;
+
+	char ip_str[INET6_ADDRSTRLEN];
 
 	/* Store the list of addresses the OS will give us here. */
 	struct addrinfo *addrs;
 
 	int error_code;
-	if ((error_code = getaddrinfo(host, port, &hints, &addrs)) != 0) {
+	if ((error_code = getaddrinfo(NULL, port, &hints, &addrs)) != 0) {
 		fprintf(stderr, "GAI FAILED!: %s\n", gai_strerror(error_code));
 		exit(1);
 	}
 
-	/* The book I'm reading (Beej's Guide to Networking Programming) warns me that 
-	 * I should not trust the first result and that I should verirfy if the address
-	 * is usable. I don't know what makes an address unfit for usage, so that
-	 * verification will come at a later time.
-	 * TODO: ^
-	 */
+	struct addrinfo *p;
+	for (p = addrs; p != NULL; p = p->ai_next) {
+		if ((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+			fprintf(stderr, "Failed to create server socket.\nRetrying...");
+			continue;
+		}
 
-	/* Let there be a socket */
-	int sock = socket(addrs->ai_family, addrs->ai_socktype, addrs->ai_protocol);
-	if (sock == -1) {
-		fprintf(stderr, "Failed to create server socket.\n");
-		exit(1);
+		/* The socket will be bound by the address we got from the OS. */
+		if (bind(sock, addrs->ai_addr, addrs->ai_addrlen) != 0) {
+			fprintf(stderr, "Failed to bind socket.\n");
+			continue;
+		}
+
+		break;
 	}
 
-	/* The socket will be bound by the address we got from the OS. */
-	if (bind(sock, addrs->ai_addr, addrs->ai_addrlen) != 0) {
-		fprintf(stderr, "Failed to bind socket.\n");
+	if (p == NULL) {
+		fprintf(stderr, "Failed to bind to address.\n");
 		exit(1);
 	}
-
-	/* We no longer need this. */
-	freeaddrinfo(addrs);
 
 	/* Mark the socket as accepting connections. */
 	if (listen(sock, 1) != 0) {
 		fprintf(stderr, "Failed to listen.\n");
 		exit(1);
 	}
+
+	addr_to_str(addrs->ai_addr, addrs->ai_addrlen, ip_str);
+	printf("Listening on %s:%s\n", ip_str, port);
+
+	/* We no longer need this. */
+	freeaddrinfo(addrs);
 
 	/* TODO: This loop will freeze execution until a client connects and, thus, sets a
 	 * limit of one concurrent user for the server. I need to fix this.
@@ -79,12 +86,10 @@ int main() {
 		 */
 		socklen_t client_addr_len = sizeof(struct sockaddr_storage);
 
-		char ip_str[INET6_ADDRSTRLEN];
-
 		/* Wait until a client opens a connection */
 		int client_sock = accept(sock, (struct sockaddr*)&client_addr_storage, &client_addr_len);
 
-		addr_to_str(&client_addr_storage, client_addr_len, ip_str);
+		addr_to_str((struct sockaddr *)&client_addr_storage, client_addr_len, ip_str);
 		printf("------------------------\n");
 		printf("Got connection from %s\n", ip_str);
 
@@ -101,21 +106,19 @@ int main() {
 
 	close(sock);
 
-	
-	
 	return 0;
 }
 
 /* Converts a sockaddr into a presentation ip string. */
-void addr_to_str(struct sockaddr_storage *addr, socklen_t addr_len, char *addr_str) {
+void addr_to_str(struct sockaddr *addr, socklen_t addr_len, char *addr_str) {
 	void *raw_addr;
 
-	if (addr->ss_family == AF_INET) {
+	if (addr->sa_family == AF_INET) {
 		/* This is my greatest act of pointer magic to this date. */
 		raw_addr = &((struct sockaddr_in *)addr)->sin_addr;
 	} else {
 		raw_addr = &((struct sockaddr_in6 *)addr)->sin6_addr;
 	}
 
-	inet_ntop(addr->ss_family, raw_addr, addr_str, addr_len);
+	inet_ntop(addr->sa_family, raw_addr, addr_str, addr_len);
 }
