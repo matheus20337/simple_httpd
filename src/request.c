@@ -38,6 +38,8 @@ HTTPRequest *parse_request(const char *buffer, size_t buffer_len) {
 	if (strcmp("GET", method) != 0) {
 		request->method = NOT_GET_METHOD;
 		return request;
+	} else {
+		request->method = GET_METHOD;
 	}
 
 	/* Skip to the next non-whitespace char */
