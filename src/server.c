@@ -21,8 +21,8 @@ static const char *not_found_header = "HTTP/1.1 404 Not found\r\n"
  * server will show the usual 404 page but will send a 405 code. If the server
  * cannot find a 404 page, only this header will be sent.
  */
-//static const char *unsupported_method_header = "HTTP/1.1 405 Unsupported method\r\n"
-//"Server: HyperboreaTTP\r\n";
+static const char *unsupported_method_header = "HTTP/1.1 405 Method not allowed\r\n"
+"Server: HyperboreaTTP\r\n";
 
 static const char *internal_error_header = "HTTP/1.1 500 Internal error\r\n"
 "Server: HyperboreaTTP\r\n";
@@ -162,7 +162,11 @@ void server_handle_client_connection(Server *server) {
 	printf("Method: %s\n", (request->method == GET_METHOD) ? "GET" : "NOT GET");
 	printf("Path: %s\n", request->path);
 
-	server_send_file(server, client_sock, "index.html");
+	if (request->method == GET_METHOD) {
+		server_send_file(server, client_sock, "index.html");
+	} else {
+		send(client_sock, unsupported_method_header, strlen(unsupported_method_header), 0);
+	}
 
 	free_request(request);
 	close(client_sock);
