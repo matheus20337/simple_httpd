@@ -7,15 +7,12 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #include "utils.h"
 #include "request.h"
+#include "router.h"
 
-/* Base headers for the 404 page. If the server cannot find a 
- * 404 html page in the server root, only this header will be sent.
- */
-static const char *not_found_header = "HTTP/1.1 404 Not found\r\n"
-"Server: HyperboreaTTP\r\n";
 
 /* The server only supports the GET method. If another method is requested, the
  * server will show the usual 404 page but will send a 405 code. If the server
@@ -24,27 +21,11 @@ static const char *not_found_header = "HTTP/1.1 404 Not found\r\n"
 static const char *unsupported_method_header = "HTTP/1.1 405 Method not allowed\r\n"
 "Server: HyperboreaTTP\r\n";
 
-static const char *internal_error_header = "HTTP/1.1 500 Internal error\r\n"
-"Server: HyperboreaTTP\r\n";
-
-void server_send_file(const Server *server, int cl_sock, char *rel_path) {
-	char *fullpath = malloc(server->server_root_len + strlen(rel_path) + 2);
-
-	if (fullpath == NULL) {
-		perror("malloc");
-		send(cl_sock, internal_error_header, strlen(internal_error_header), 0);
-		return;
-	}
-
-	sprintf(fullpath, "%s/%s", server->server_root, rel_path);
-
-	FILE *file = fopen(fullpath, "r");
-	free(fullpath);
+bool server_send_file(int cl_sock, char *path) {
+	FILE *file = fopen(path, "r");
 
 	if (file == NULL) {
-		perror("fopen");
-		send(cl_sock, not_found_header, strlen(not_found_header), 0);
-		return;
+		return false;
 	}
 
 	const size_t buff_len = 1024;
@@ -72,6 +53,7 @@ void server_send_file(const Server *server, int cl_sock, char *rel_path) {
 	} while(!feof(file));
 
 	fclose(file);
+	return true;
 }
 
 Server init_server(const char *port, const char *server_root) {
@@ -163,7 +145,7 @@ void server_handle_client_connection(Server *server) {
 	printf("Path: %s\n", request->path);
 
 	if (request->method == GET_METHOD) {
-		server_send_file(server, client_sock, "index.html");
+		route(server, client_sock, request->path);
 	} else {
 		send(client_sock, unsupported_method_header, strlen(unsupported_method_header), 0);
 	}

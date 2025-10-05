@@ -2,6 +2,7 @@
 #define SERVER_H
 
 #include <stddef.h>
+#include <stdbool.h>
 
 /* HTTP Status codes supported by the server. */
 typedef enum StatusCode {
@@ -26,9 +27,9 @@ Server init_server(const char *port, const char *server_root);
 void stop_server(Server *server);
 
 /* Sends a static file to the client.
- * Will send an error page if the file cannot
- * be found in the server root.*/
-void server_send_file(const Server *server, int cl_sock, char *rel_path);
+ * returns if the file has been sent.
+ */
+bool server_send_file(int cl_sock, char *path);
 
 /* accept()s a client connection and handles the request. */
 void server_handle_client_connection(Server *server);
