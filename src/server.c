@@ -70,6 +70,8 @@ void server_send_file(const Server *server, int cl_sock, char *rel_path) {
 
 		fread(file_buffer, sizeof(char), buff_len, file);
 	} while(!feof(file));
+
+	fclose(file);
 }
 
 Server init_server(const char *port, const char *server_root) {
