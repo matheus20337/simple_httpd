@@ -11,18 +11,83 @@
 
 const char *port = "8080"; /* The functions expect the port to be a string. */
 
-const char *sample_msg = "HTTP/1.1 404 Not found\r\n"
-"Server: HyperboreaTTP\r\n"
-"Content-Type: text/html\r\n"
-"Content-Length: 29\r\n"
-"\r\n"
-"<h1>Hello, networking!</h1>\r\n";
+/* Base headers for the 404 page. If the server cannot find a 
+ * 404 html page in the server root, only this header will be sent.
+ */
+const char *not_found_header = "HTTP/1.1 404 Not found\r\n"
+"Server: HyperboreaTTP\r\n";
+
+/* The server only supports the GET method. If another method is requested, the
+ * server will show the usual 404 page but will send a 405 code. If the server
+ * cannot find a 404 page, only this header will be sent.
+ */
+const char *unsupported_method_header = "HTTP/1.1 405 Unsupported method\r\n"
+"Server: HyperboreaTTP\r\n";
+
+const char *internal_error_header = "HTTP/1.1 500 Internal error\r\n"
+"Server: HyperboreaTTP\r\n";
 
 void addr_to_str(struct sockaddr *addr, socklen_t addr_len, char *addr_str);
-
 int init_server(void);
 
-int main() {
+/* Sends a static file to the client.
+ * Will send an error page if the file cannot
+ * be found in the server root.*/
+void send_file(int cl_sock, char *server_root, char *rel_path) {
+	char *fullpath = malloc(strlen(server_root) + strlen(rel_path) + 2);
+
+	if (fullpath == NULL) {
+		perror("malloc");
+		send(cl_sock, internal_error_header, strlen(internal_error_header), 0);
+		return;
+	}
+
+	sprintf(fullpath, "%s/%s", server_root, rel_path);
+
+	FILE *file = fopen(fullpath, "r");
+	free(fullpath);
+
+	if (file == NULL) {
+		perror("fopen");
+		send(cl_sock, not_found_header, strlen(not_found_header), 0);
+		return;
+	}
+
+	const size_t buff_len = 1024;
+	char file_buffer[buff_len];
+	size_t buffer_pos = 0;
+
+	/* We need the size of the file. */
+	fseek(file, 0, SEEK_END);
+	long int file_size = ftell(file);
+	rewind(file);
+
+	sprintf(file_buffer, "HTTP/1.1 200 OK\r\n"
+		"Server: HyperboreaTTP\r\n"
+		"Content-Type: text/html\r\n"
+		"Content-Length: %ld\r\n\r\n", file_size);
+
+	for (buffer_pos = strlen(file_buffer); buffer_pos - 1 < buff_len && !feof(file); buffer_pos++) {
+		file_buffer[buffer_pos] = fgetc(file);
+	}
+	file_buffer[buffer_pos++] = '\0';
+
+	do {
+		send(cl_sock, file_buffer, buff_len, 0);
+
+		for (buffer_pos = 0; buffer_pos < buff_len - 1 && !feof(file); buffer_pos++) {
+			file_buffer[buffer_pos] = fgetc(file);
+		}
+		file_buffer[buffer_pos++] = '\0';
+	} while(!feof(file));
+}
+
+int main(int argc, char *argv[]) {
+	if (argc < 2) {
+		fprintf(stderr, "Usage: %s <root_directory>\n", argv[0]);
+		exit(1);
+	}
+
 	char ip_str[INET6_ADDRSTRLEN];
 
 	int sock = init_server();
@@ -45,18 +110,21 @@ int main() {
 		printf("------------------------\n");
 		printf("Got connection from %s\n", ip_str);
 
-		/* For now, we'll discard the request. TODO: Read and interpret the request. */
 		char buffer[max_buff_len + 1];
 		int buff_len = recv(client_sock, buffer, max_buff_len, 0);
 		buffer[buff_len] = '\0';
 		printf("Got data:\n%s\n", buffer);
 
-		send(client_sock, sample_msg, strlen(sample_msg) * sizeof(char), 0);
+		send_file(client_sock, argv[1], "index.html");
 
 		close(client_sock);
 	} while(1);
 
+	/* TODO: The code never reaches this place. I need to find a way to gracefully shutdown the server.
+	 */
+
 	close(sock);
+	printf("Server closed gracefully...\n");
 
 	return 0;
 }
@@ -120,7 +188,6 @@ int init_server(void) {
 		fprintf(stderr, "Failed to bind to address.\n");
 		exit(1);
 	}
-
 
 	/* Mark the socket as accepting connections. */
 	if (listen(sock, 1) != 0) {
