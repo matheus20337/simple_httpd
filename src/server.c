@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "utils.h"
+#include "request.h"
 
 /* Base headers for the 404 page. If the server cannot find a 
  * 404 html page in the server root, only this header will be sent.
@@ -154,10 +155,14 @@ void server_handle_client_connection(Server *server) {
 	char buffer[max_buff_len + 1];
 	int buff_len = recv(client_sock, buffer, max_buff_len, 0);
 	buffer[buff_len] = '\0';
-	printf("Got data:\n%s\n", buffer);
+	HTTPRequest *request= parse_request(buffer, buff_len);
+
+	printf("Method: %s\n", (request->method == GET_METHOD) ? "GET" : "NOT GET");
+	printf("Path: %s\n", request->path);
 
 	server_send_file(server, client_sock, "index.html");
 
+	free_request(request);
 	close(client_sock);
 }
 
