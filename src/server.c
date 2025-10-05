@@ -60,18 +60,14 @@ void server_send_file(const Server *server, int cl_sock, char *rel_path) {
 		"Content-Type: text/html\r\n"
 		"Content-Length: %ld\r\n\r\n", file_size);
 
-	for (buffer_pos = strlen(file_buffer); buffer_pos - 1 < buff_len && !feof(file); buffer_pos++) {
-		file_buffer[buffer_pos] = fgetc(file);
-	}
-	file_buffer[buffer_pos++] = '\0';
+	buffer_pos = strlen(file_buffer);
+
+	fread(file_buffer + buffer_pos, sizeof(char), buff_len - buffer_pos, file);
 
 	do {
 		send(cl_sock, file_buffer, buff_len, 0);
 
-		for (buffer_pos = 0; buffer_pos < buff_len - 1 && !feof(file); buffer_pos++) {
-			file_buffer[buffer_pos] = fgetc(file);
-		}
-		file_buffer[buffer_pos++] = '\0';
+		fread(file_buffer, sizeof(char), buff_len, file);
 	} while(!feof(file));
 }
 

@@ -3,6 +3,14 @@
 
 #include <stddef.h>
 
+/* HTTP Status codes supported by the server. */
+typedef enum StatusCode {
+	STATUS_OK = 200,
+	STATUS_NOT_FOUND = 404,
+	STATUS_UNSUPORTED_METHOD = 405,
+	STATUS_SERVER_ERROR = 500
+} StatusCode;
+
 typedef struct Server {
 	int sock;
 	char server_root[512];
