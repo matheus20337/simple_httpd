@@ -23,4 +23,4 @@ router.o: src/router.c src/server.h
 .PHONY: clean
 
 clean:
-	rm -v main.o server.o utils.o request.o$(TARGET)
+	rm -v main.o server.o utils.o request.o $(TARGET)
