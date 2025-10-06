@@ -36,7 +36,7 @@ HTTPRequest *parse_request(const char *buffer, size_t buffer_len) {
 	method[buff_index] = '\0';
 
 	if (strcmp("GET", method) != 0) {
-		request->method = NOT_GET_METHOD;
+		request->method = UNSUPPORTED_METHOD;
 		return request;
 	} else {
 		request->method = GET_METHOD;

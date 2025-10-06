@@ -4,7 +4,7 @@
 
 typedef enum RequestMethod {
 	GET_METHOD,
-	NOT_GET_METHOD
+	UNSUPPORTED_METHOD
 } RequestMethod;
 
 typedef struct HTTPRequest {
