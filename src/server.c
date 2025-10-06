@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <sys/stat.h>
 
 #include "utils.h"
 #include "request.h"
@@ -22,6 +23,18 @@ static const char *unsupported_method_header = "HTTP/1.1 405 Method not allowed\
 "Server: HyperboreaTTP\r\n";
 
 bool server_send_file(int cl_sock, char *path) {
+	struct stat file_stat;
+
+	if (stat(path, &file_stat) == -1) {
+		perror("stat");
+		return false;
+	}
+
+	/* If the requested path is not a regular file or a symlink */
+	if (!S_ISREG(file_stat.st_mode) && !S_ISLNK(file_stat.st_mode)) {
+		return false;
+	}
+
 	FILE *file = fopen(path, "r");
 
 	if (file == NULL) {
