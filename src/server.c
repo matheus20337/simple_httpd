@@ -19,8 +19,8 @@
  * server will show the usual 404 page but will send a 405 code. If the server
  * cannot find a 404 page, only this header will be sent.
  */
-static const char *unsupported_method_header = "HTTP/1.1 405 Method not allowed\r\n"
-"Server: HyperboreaTTP\r\n";
+//static const char *unsupported_method_header = "HTTP/1.1 405 Method not allowed\r\n"
+//"Server: HyperboreaTTP\r\n";
 
 bool server_send_file(int cl_sock, char *path) {
 	struct stat file_stat;
@@ -157,11 +157,7 @@ void server_handle_client_connection(Server *server) {
 	printf("Method: %s\n", (request->method == GET_METHOD) ? "GET" : "NOT GET");
 	printf("Path: %s\n", request->path);
 
-	if (request->method == GET_METHOD) {
-		route(server, client_sock, request->path);
-	} else {
-		send(client_sock, unsupported_method_header, strlen(unsupported_method_header), 0);
-	}
+	route(server, client_sock, request);
 
 	free_request(request);
 	close(client_sock);

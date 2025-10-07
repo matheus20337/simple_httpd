@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include "server.h"
 
@@ -14,7 +15,15 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	Server server = init_server(port, argv[1]);
+	char server_root[PATH_MAX];
+
+	if (!realpath(argv[1], server_root)) {
+		perror("Path");
+		exit(1);
+	}
+
+
+	Server server = init_server(port, server_root);
 
 	/* TODO: This loop will freeze execution until a client connects and, thus, sets a
 	 * limit of one concurrent user for the server. I need to fix this.

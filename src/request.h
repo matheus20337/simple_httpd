@@ -1,15 +1,18 @@
 #ifndef REQUEST_H
 #define REQUEST_H
 #include <stddef.h>
+#include <limits.h>
 
 typedef enum RequestMethod {
 	GET_METHOD,
 	UNSUPPORTED_METHOD
 } RequestMethod;
 
+#define REQ_PATH_LEN 1024
+
 typedef struct HTTPRequest {
 	RequestMethod method;
-	char path[1024];
+	char path[REQ_PATH_LEN];
 } HTTPRequest;
 #endif
 
